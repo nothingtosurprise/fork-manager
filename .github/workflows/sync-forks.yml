@@ -1,0 +1,64 @@
+name: 🔄 Sync All Forks
+
+on:
+  # ── Manual trigger — click "Run workflow" button in GitHub Actions tab
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (list forks but don't actually sync)"
+        type: boolean
+        default: false
+      force_sync:
+        description: "Force sync (overwrites diverged forks — use with caution)"
+        type: boolean
+        default: false
+      exclude_repos:
+        description: "Comma-separated repo names to skip (e.g. onyx,evolution-api)"
+        type: string
+        default: ""
+
+  # ── Automatic schedule — runs every Monday at 09:00 UTC
+  schedule:
+    - cron: "0 9 * * 1"
+
+jobs:
+  sync-forks:
+    name: Sync All Forks to Upstream
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout fork-manager
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run fork sync
+        env:
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_USERNAME: ${{ github.actor }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+          FORCE_SYNC: ${{ inputs.force_sync || 'false' }}
+          # Merge manual input excludes with the hardcoded default exclude list
+          # Add any permanently excluded repos to PERMANENT_EXCLUDES below
+          EXCLUDE_REPOS: ${{ inputs.exclude_repos }}
+          PERMANENT_EXCLUDES: ""
+        run: |
+          # Merge permanent + manual excludes
+          if [ -n "$PERMANENT_EXCLUDES" ] && [ -n "$EXCLUDE_REPOS" ]; then
+            export EXCLUDE_REPOS="$PERMANENT_EXCLUDES,$EXCLUDE_REPOS"
+          elif [ -n "$PERMANENT_EXCLUDES" ]; then
+            export EXCLUDE_REPOS="$PERMANENT_EXCLUDES"
+          fi
+          node sync.js
+
+      - name: Upload sync log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sync-log-${{ github.run_number }}
+          retention-days: 30
+          
