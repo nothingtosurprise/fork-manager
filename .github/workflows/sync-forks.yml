@@ -34,7 +34,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Run fork sync
         env:
@@ -54,11 +54,3 @@ jobs:
             export EXCLUDE_REPOS="$PERMANENT_EXCLUDES"
           fi
           node sync.js
-
-      - name: Upload sync log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: sync-log-${{ github.run_number }}
-          retention-days: 30
-          
