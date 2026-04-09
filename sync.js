@@ -1,7 +1,7 @@
+
 /**
  * fork-manager — sync.js
  * Syncs all GitHub forks for an authenticated user with their upstream repos.
- * Supports exclude list, dry-run mode, and detailed reporting.
  *
  * Author: ModelNorth
  * License: MIT
@@ -16,12 +16,6 @@ const USERNAME = process.env.GITHUB_ACTOR || process.env.GH_USERNAME;
 const DRY_RUN = process.env.DRY_RUN === "true";
 const FORCE_SYNC = process.env.FORCE_SYNC === "true";
 
-/**
- * Add repo names here (just the name, not owner/name) to skip them during sync.
- * Useful for forks you've heavily modified and don't want overwritten.
- *
- * Example: ["onyx", "evolution-api", "twenty"]
- */
 const EXCLUDE_LIST = (process.env.EXCLUDE_REPOS || "")
   .split(",")
   .map((r) => r.trim().toLowerCase())
@@ -88,16 +82,14 @@ async function getAllForks() {
 }
 
 async function syncFork(owner, repo, defaultBranch) {
-  const res = await apiRequest(
+  return await apiRequest(
     "POST",
     `/repos/${owner}/${repo}/merge-upstream`,
     { branch: defaultBranch }
   );
-
-  return res;
 }
 
-// ─── MAIN ─────────────────────────────────────────────────────────────────────
+// ─── MAIN ────────────────────────────────────────────────────────────────────
 
 async function main() {
   if (!TOKEN) {
@@ -110,14 +102,19 @@ async function main() {
   console.log("╚════════════════════════════════════════╝\n");
 
   if (DRY_RUN) console.log("🔍 DRY RUN MODE — no actual syncs will happen\n");
-  if (FORCE_SYNC) console.log("⚡ FORCE SYNC enabled — conflicts will be overwritten\n");
+  if (FORCE_SYNC) console.log("⚡ FORCE SYNC enabled\n");
   if (EXCLUDE_LIST.length > 0) {
-    console.log(`🚫 Excluded repos: ${EXCLUDE_LIST.join(", ")}\n`);
+    console.log(`🚫 Excluded: ${EXCLUDE_LIST.join(", ")}\n`);
   }
 
   console.log("📡 Fetching all forks...");
   const forks = await getAllForks();
   console.log(`✅ Found ${forks.length} fork(s)\n`);
+
+  if (forks.length === 0) {
+    console.log("ℹ️  No forks found in this account. Nothing to sync.");
+    process.exit(0);
+  }
 
   const results = {
     synced: [],
@@ -132,15 +129,14 @@ async function main() {
     const ownerLogin = fork.owner.login;
     const defaultBranch = fork.default_branch;
 
-    // Check exclude list
     if (EXCLUDE_LIST.includes(repoName.toLowerCase())) {
-      console.log(`⏭  [EXCLUDED]  ${ownerLogin}/${repoName}`);
+      console.log(`⏭  [EXCLUDED]   ${ownerLogin}/${repoName}`);
       results.skipped.push(repoName);
       continue;
     }
 
     if (DRY_RUN) {
-      console.log(`🔍 [DRY RUN]   ${ownerLogin}/${repoName} (branch: ${defaultBranch})`);
+      console.log(`🔍 [DRY RUN]    ${ownerLogin}/${repoName} (branch: ${defaultBranch})`);
       results.synced.push(repoName);
       continue;
     }
@@ -154,25 +150,24 @@ async function main() {
           console.log(`✅ [UP TO DATE] ${ownerLogin}/${repoName}`);
           results.alreadyUpToDate.push(repoName);
         } else {
-          console.log(`🔄 [SYNCED]    ${ownerLogin}/${repoName} — ${msg}`);
+          console.log(`🔄 [SYNCED]     ${ownerLogin}/${repoName} — ${msg}`);
           results.synced.push(repoName);
         }
       } else if (res.status === 409) {
-        console.log(`⚠️  [CONFLICT]  ${ownerLogin}/${repoName} — has diverged from upstream`);
+        console.log(`⚠️  [CONFLICT]   ${ownerLogin}/${repoName} — diverged from upstream`);
         results.conflicts.push(repoName);
       } else if (res.status === 422) {
-        console.log(`⚠️  [SKIPPED]   ${ownerLogin}/${repoName} — ${res.body.message}`);
+        console.log(`⏭  [SKIPPED]    ${ownerLogin}/${repoName} — ${res.body.message}`);
         results.skipped.push(repoName);
       } else {
-        console.log(`❌ [ERROR]     ${ownerLogin}/${repoName} — HTTP ${res.status}: ${res.body.message}`);
+        console.log(`❌ [ERROR]      ${ownerLogin}/${repoName} — HTTP ${res.status}: ${res.body.message}`);
         results.errors.push(repoName);
       }
     } catch (err) {
-      console.log(`❌ [ERROR]     ${ownerLogin}/${repoName} — ${err.message}`);
+      console.log(`❌ [ERROR]      ${ownerLogin}/${repoName} — ${err.message}`);
       results.errors.push(repoName);
     }
 
-    // Slight delay to avoid hitting rate limits
     await new Promise((r) => setTimeout(r, 300));
   }
 
@@ -190,23 +185,30 @@ async function main() {
   console.log(`📦 Total forks processed:        ${forks.length}`);
 
   if (results.conflicts.length > 0) {
-    console.log(`\n⚠️  Conflicted repos (your commits diverged from upstream):`);
+    console.log(`\n⚠️  Conflicted repos:`);
     results.conflicts.forEach((r) => console.log(`   • ${r}`));
-    console.log(`\n   To force-sync these, re-run with FORCE_SYNC=true`);
-    console.log(`   Warning: this will overwrite your changes on those forks.`);
+    console.log(`\n   Re-run with FORCE_SYNC=true to overwrite.`);
   }
 
   if (results.errors.length > 0) {
     console.log(`\n❌ Failed repos:`);
     results.errors.forEach((r) => console.log(`   • ${r}`));
+    process.exit(1);
   }
-
-  // Exit with error code if anything failed
-  if (results.errors.length > 0) process.exit(1);
 }
 
 main().catch((err) => {
   console.error("Fatal error:", err);
   process.exit(1);
 });
+```
 
+---
+
+Key change — added this at the end of `getAllForks`:
+
+```javascript
+if (forks.length === 0) {
+  console.log("ℹ️  No forks found in this account. Nothing to sync.");
+  process.exit(0);
+}
