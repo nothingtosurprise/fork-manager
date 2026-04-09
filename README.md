@@ -1,6 +1,6 @@
 # 🔄 fork-manager
 
-> One-tap sync for all your GitHub forks. Built by [ModelNorth](https://modelnorth.ai).
+> One-tap sync for all your GitHub forks. Built by [ModelNorth](https://modelnorth.com).
 
 Keep every fork in your GitHub account up to date with its upstream — automatically on a schedule, or manually with a single button click.
 
