@@ -85,10 +85,10 @@ These will be skipped on every run, both scheduled and manual.
 ✅ Found 47 fork(s)
 
 🔄 [SYNCED]     yourname/langchain — Successfully merged 3 commits
-✅ [UP TO DATE] yourname/fastapi
-✅ [UP TO DATE] yourname/shadcn-ui
-⏭  [EXCLUDED]   yourname/onyx
-⚠️  [CONFLICT]   yourname/supabase — has diverged from upstream
+✅ [UP TO DATE] yourname/repo-name-1
+✅ [UP TO DATE] yourname/repo-name-2
+⏭  [EXCLUDED]   yourname/repo-name
+⚠️  [CONFLICT]   yourname/repo-name-1 — has diverged from upstream
 
 ╔════════════════════════════════════════╗
 ║              SYNC SUMMARY               ║
