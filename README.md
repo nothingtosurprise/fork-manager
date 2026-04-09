@@ -67,7 +67,7 @@ Some forks you've heavily modified (e.g. a white-labeled product) should never b
 Edit the `PERMANENT_EXCLUDES` line in `.github/workflows/sync-forks.yml`:
 
 ```yaml
-PERMANENT_EXCLUDES: "onyx,evolution-api,twenty"
+PERMANENT_EXCLUDES: "repo-name-1,repo-name-2"
 ```
 
 These will be skipped on every run, both scheduled and manual.
